@@ -1,0 +1,51 @@
+These are codes that worked but were commented out of file for an 
+upgraded package.
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': 
+        # 'rest_framework.authentication.SessionAuthentication',
+        # 'rest_framework.authentication.TokenAuthentication',
+}
+views.py
+from rest_framework.authtoken.views import ObtainAuthToken
+from rest_framework.authtoken.models import Token
+
+class RegisterView(generics.GenericAPIView):
+    serializer_class = RegisterSerializer
+
+    # to handle a post request
+    def post(self, request):
+        # to get the data sent by user
+        user = request.data
+        # send data to serializer
+        serializer = self.serializer_class(data=user)
+        serializer.is_valid(raise_exception=True) # validate
+        serializer.save() # create
+        user_data = serializer.data
+
+        user = User.objects.get(email=user_data['email'])
+        
+        # USING BUILT-IN REST_FRAMEWORK AUTHENTICATION
+        token, _ = Token.objects.get_or_create(user=user)
+        token_key = token.key 
+
+
+class VerifyEmail(views.APIView):
+    serializer_class = EmailVerificationSerializer
+
+    token_param_config = openapi.Parameter('token', in_=openapi.IN_QUERY, description='Description', type=openapi.TYPE_STRING)
+    #auto_schema tells swagger what fields to show
+    @swagger_auto_schema(manual_parameters=[token_param_config])
+    def get(self, request):
+        token = request.GET.get('token')
+        USING REST TOKEN AUTHENTICATION
+        try:
+            token_obj = Token.objects.get(key=token)
+            user = token_obj.user
+            if not user.is_verified:
+                user.is_verified = True
+                user.save()
+            return Response(str(user.username) + ', your account has been confirmed', status=status.HTTP_200_OK)
+        except Token.DoesNotExist as identifier:
+            return Response({'error': 'Activation Expired or does not exist}'}, status=status.HTTP_400_BAD_REQUEST)
+        
